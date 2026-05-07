@@ -11,3 +11,6 @@ torch>=2.7
 # OpenAI-compatible client; used to talk to local Ollama by default,
 # or to any OpenAI-compatible API (Anthropic via proxy, OpenAI directly) via env vars (Phase 3)
 openai>=1.50
+
+# Test runner
+pytest>=8.0

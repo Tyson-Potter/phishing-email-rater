@@ -6,3 +6,8 @@ __pycache__/
 
 # LLM audit logs may contain email content
 .phishing_rater/
+
+# Synthetic samples (X-Sample-Origin attributed) ARE committed as test fixtures.
+# If you add captured real-world phishing emails for local testing, name them
+# samples/local-*.eml — those won't be tracked.
+samples/local-*.eml
