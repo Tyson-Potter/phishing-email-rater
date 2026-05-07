@@ -13,13 +13,112 @@ The goal is **defensible** phishing triage: each layer's strengths and failure m
 | LLM verdict | Implemented | Structured JSON verdict (classification, confidence, top indicators, recommended action). Defaults to local Ollama; external providers opt-in via env vars. |
 | Combined risk score | Implemented | Low / Medium / High verdict with explicit rationale showing which signals contributed how many points |
 
+## How the layers complement each other
+
+No single layer is sufficient. Each catches what the others miss:
+
+- **Rules** are fast, explainable, and deterministic — but blind to anything they weren't programmed to see.
+- **ML** catches statistical phishing patterns even when the technical indicators are clean — but cannot explain itself or reason about novel pretexts.
+- **LLM** catches narrative and pretext (BEC, novel scams, social engineering) and explains *why* — but is slower, more expensive, and prone to hallucination and prompt injection.
+
+A combined risk aggregator (`phishing_rater/score.py`) blends the three signals into a Low/Medium/High verdict with an explicit rationale showing every contributing point. See "Combined risk score" below for the weighting story.
+
+## Setup
+
+```bash
+git clone https://github.com/Tyson-Potter/phishing-email-rater.git
+cd phishing-email-rater
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+```
+
+The LLM layer is optional. To enable it, install Ollama and pull the
+default model (or any other; see Configuration):
+
+```bash
+brew install ollama
+ollama serve &
+ollama pull llama3.2:3b
+```
+
+If Ollama isn't running, the rest of the report still prints; the LLM
+block shows `(skipped: LLM call failed: ...)`. You can also pass
+`--skip-llm` to bypass it deliberately.
+
 ## Usage
 
-```
+```bash
 python -m phishing_rater path/to/email.eml
+python -m phishing_rater path/to/email.eml --skip-llm   # rules + ML only
 ```
 
-Sample emails for testing live in `samples/` (synthetic — crafted by hand, not captured from real traffic).
+Sample emails for testing live in `samples/` (synthetic — see `X-Sample-Origin` header in each file).
+
+## Project layout
+
+```
+phishing_rater/
+├── __init__.py          loads .env on package import
+├── __main__.py          entry point for `python -m phishing_rater`
+├── parser.py            .eml → EmailMessage, MIME tree walking, body extraction
+├── cli.py               orchestration + report formatting
+├── score.py             combined risk aggregator (Low/Medium/High + rationale)
+├── rules/
+│   ├── urls.py          URL extraction + defanging
+│   ├── whois_check.py   domain age via WHOIS
+│   ├── auth_headers.py  SPF / DKIM / DMARC parsing
+│   ├── from_spoof.py    display-name spoof + corporate-role-on-free-mail
+│   └── attachments.py   filename + SHA-256 (never opens payload)
+├── ml/
+│   └── hf_classifier.py HuggingFace transformer wrapper, env-configurable model
+└── llm/
+    └── analyzer.py      LLM analysis with audit logging, env-configurable backend
+
+samples/                 10 synthetic .eml fixtures (X-Sample-Origin attributed)
+tests/                   pytest suite covering parser + all rule modules
+.env.example             configurable variables with copy-paste blocks
+```
+
+## Configuration
+
+All configuration is via environment variables, optionally loaded from a
+local `.env` file. Copy `.env.example` to `.env` and uncomment what you
+want to override:
+
+```bash
+cp .env.example .env
+$EDITOR .env
+```
+
+### Swap to a newer ML model
+
+The classifier is bound to its model only by an env var. When a better
+phishing classifier ships on the HuggingFace Hub, plug it in with one
+line:
+
+```bash
+# in .env
+PHISHING_RATER_ML_MODEL=author/whatever-phishing-classifier-2027
+```
+
+If the new model uses different label names, override the label sets too:
+
+```bash
+PHISHING_RATER_ML_PHISHING_LABELS=phish,malicious
+PHISHING_RATER_ML_LEGITIMATE_LABELS=ham,benign
+```
+
+The defaults already cover most common label conventions (binary
+`LABEL_0/LABEL_1`, multi-label `phishing_url`/`legitimate_email`, and
+plain `phishing`/`legitimate`), so most replacement models work
+unchanged.
+
+### Switch LLM backends
+
+Default is local Ollama — `.env.example` has copy-paste blocks for
+OpenAI and Anthropic-via-proxy. Switching providers is purely an env
+change; no code touches.
 
 ## Safety constraints
 
@@ -68,29 +167,15 @@ The classifier is fast and consistent but has known blind spots:
 
 Empirically on this repo's `samples/` set the classifier flags the obvious credential-harvesting and invoice-fraud cases, and **misses the BEC sample** (no URLs, no keywords — just social engineering). That gap is the explicit motivation for the LLM layer.
 
-## LLM layer (privacy + setup)
+## LLM layer (privacy posture)
 
-Defaults to **local Ollama** so email content never leaves the machine.
-Setup:
-
-```bash
-brew install ollama
-ollama serve &
-ollama pull llama3.1:8b
-```
-
-External providers are opt-in via environment variables:
-
-```bash
-# Talk to OpenAI directly
-export PHISHING_RATER_LLM_BASE_URL="https://api.openai.com/v1"
-export PHISHING_RATER_LLM_API_KEY="sk-..."
-export PHISHING_RATER_LLM_MODEL="gpt-4o-mini"
-```
+The LLM defaults to **local Ollama** so email content never leaves the
+machine. External providers (OpenAI, Anthropic via proxy, etc.) are
+opt-in via env vars — see `.env.example`.
 
 Every LLM call is logged to `.phishing_rater/llm_audit/YYYY-MM-DD.jsonl`
 (prompt + response + timestamp + prompt-hash) so any classification can be
-replayed and reviewed later. The audit directory is gitignored — it
+replayed and reviewed later. The audit directory is gitignored because it
 contains email content.
 
 ## Limitations (LLM layer)
@@ -103,14 +188,6 @@ failure modes:
 - **Privacy when using external APIs.** Sending email content to a third-party LLM is a real SOC concern. A real deployment should use on-prem models (the default here), data-processing agreements, or a redaction pipeline. Regulated content (legal, medical, financial, M&A) should never go to commercial APIs without explicit authorization.
 - **Latency.** ~5-15s per email locally, ~1-3s for external APIs. Not suitable for high-volume real-time triage without batching.
 - **Non-determinism.** Even at temperature 0.1, the model may give slightly different indicators on repeated runs. The audit log is what makes this auditable; it is not what makes it reproducible.
-
-## How the layers complement each other
-
-No single layer is sufficient. Each catches what the others miss:
-
-- **Rules** are fast, explainable, and deterministic — but blind to anything they weren't programmed to see.
-- **ML** catches statistical phishing patterns even when the technical indicators are clean — but cannot explain itself or reason about novel pretexts.
-- **LLM** catches narrative and pretext (BEC, novel scams, social engineering) and explains *why* — but is slower, more expensive, and prone to hallucination and prompt injection.
 
 ## Combined risk score
 

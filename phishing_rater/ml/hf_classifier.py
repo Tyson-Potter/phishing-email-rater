@@ -19,11 +19,25 @@ from transformers import pipeline  # noqa: E402
 
 logging.getLogger("huggingface_hub").setLevel(logging.ERROR)
 
-MODEL_ID = "cybersectony/phishing-email-detection-distilbert_v2.4.1"
+DEFAULT_MODEL_ID = "cybersectony/phishing-email-detection-distilbert_v2.4.1"
+DEFAULT_PHISHING_LABELS = "LABEL_1,phishing,phishing_url,phishing_url_alt"
+DEFAULT_LEGITIMATE_LABELS = "LABEL_0,legitimate,legitimate_email,legitimate_url"
 
-# This model exports binary labels `LABEL_0` (legitimate) and `LABEL_1` (phishing).
-PHISHING_LABELS = {"LABEL_1"}
-LEGITIMATE_LABELS = {"LABEL_0"}
+
+def _parse_label_set(env_var, default):
+    """Comma-separated env var → set of label strings. Empty entries dropped."""
+    raw = os.getenv(env_var, default)
+    return {label.strip() for label in raw.split(",") if label.strip()}
+
+
+# Model + label config can be overridden via env (or .env file) so the classifier
+# can be swapped to any text-classification model on the Hub. Default is the
+# cybersectony DistilBERT with binary LABEL_0/LABEL_1 outputs.
+MODEL_ID = os.getenv("PHISHING_RATER_ML_MODEL", DEFAULT_MODEL_ID)
+PHISHING_LABELS = _parse_label_set("PHISHING_RATER_ML_PHISHING_LABELS",
+                                    DEFAULT_PHISHING_LABELS)
+LEGITIMATE_LABELS = _parse_label_set("PHISHING_RATER_ML_LEGITIMATE_LABELS",
+                                      DEFAULT_LEGITIMATE_LABELS)
 LABEL_FRIENDLY = {"LABEL_0": "legitimate", "LABEL_1": "phishing"}
 
 

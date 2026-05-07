@@ -12,5 +12,8 @@ torch>=2.7
 # or to any OpenAI-compatible API (Anthropic via proxy, OpenAI directly) via env vars (Phase 3)
 openai>=1.50
 
+# Loads configuration from a local .env file (Phase 5: configurability)
+python-dotenv>=1.0
+
 # Test runner
 pytest>=8.0
