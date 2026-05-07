@@ -9,6 +9,7 @@ from phishing_rater.rules.auth_headers import auth_findings, parse_auth_results
 from phishing_rater.rules.from_spoof import from_findings
 from phishing_rater.rules.urls import defang, extract_urls
 from phishing_rater.rules.whois_check import check_domain_age, registered_domain
+from phishing_rater.score import aggregate
 
 
 def analyze(path, *, skip_llm=False):
@@ -31,7 +32,7 @@ def analyze(path, *, skip_llm=False):
             age = check_domain_age(domain)
         url_findings.append({"url": url, "domain": domain, "age": age})
 
-    return {
+    report = {
         "from": msg["From"],
         "subject": msg["Subject"],
         "auth": parse_auth_results(msg),
@@ -41,10 +42,21 @@ def analyze(path, *, skip_llm=False):
         "ml": ml_classify(body),
         "llm": None if skip_llm else llm_analyze(body),
     }
+    report["score"] = aggregate(report)
+    return report
 
 
 def print_report(report):
     """Pretty-print an analysis report for human consumption."""
+    score = report["score"]
+    risk = score["risk"].upper()
+    flag = "  ***" if risk in ("HIGH", "MEDIUM") else ""
+    print(f"=== RISK: {risk} ({score['points']} points){flag} ===")
+    for line in score["rationale"]:
+        print(f"  {line}")
+    if not score["rationale"]:
+        print("  (no signals contributed)")
+    print()
     print(f"From:    {report['from']}")
     print(f"Subject: {report['subject']}")
     print()

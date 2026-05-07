@@ -11,7 +11,7 @@ The goal is **defensible** phishing triage: each layer's strengths and failure m
 | Rule-based | Implemented | Auth headers (SPF/DKIM/DMARC), display-name vs From-domain spoofing, attachment hashing, URL extraction + defang, WHOIS domain age |
 | ML classifier | Implemented | Pre-trained HuggingFace DistilBERT (`cybersectony/phishing-email-detection-distilbert_v2.4.1`) scoring body content |
 | LLM verdict | Implemented | Structured JSON verdict (classification, confidence, top indicators, recommended action). Defaults to local Ollama; external providers opt-in via env vars. |
-| Combined risk score | Planned | Low / Medium / High weighted across the three signals |
+| Combined risk score | Implemented | Low / Medium / High verdict with explicit rationale showing which signals contributed how many points |
 
 ## Usage
 
@@ -112,4 +112,33 @@ No single layer is sufficient. Each catches what the others miss:
 - **ML** catches statistical phishing patterns even when the technical indicators are clean — but cannot explain itself or reason about novel pretexts.
 - **LLM** catches narrative and pretext (BEC, novel scams, social engineering) and explains *why* — but is slower, more expensive, and prone to hallucination and prompt injection.
 
-The combined risk score (planned) blends all three signals into a single Low/Medium/High verdict that an analyst can see, and that is fully auditable layer-by-layer.
+## Combined risk score
+
+`phishing_rater/score.py` aggregates the three layers into a single
+Low/Medium/High verdict. The point of the aggregator is the **rationale**
+it produces, not the verdict itself — every contributing signal is listed
+with its point weight, so an analyst can see exactly why and disagree.
+
+Weighting principles:
+
+- **Rule-based signals dominate.** DMARC fail, brand-impersonation display
+  name, unregistered linked domain — each contributes 3-4 points. These
+  are the most explainable signals and have the lowest false-positive rate.
+- **ML contributes only above 0.7.** The classifier has a known
+  false-positive band on transactional security emails (GitHub login
+  notifications, AWS account alerts), so we trust it only when it is
+  confident.
+- **LLM is weighted by its own confidence.** A `PHISHING/HIGH` verdict
+  weighs 3 points; `SUSPICIOUS/LOW` weighs 1. The model's hedging is a
+  feature, not a bug — a small model that admits uncertainty is more
+  trustworthy than one that fakes certainty.
+- **Strong legit signals suppress weak AI noise.** If auth is all-pass,
+  the linked domain has multi-year history, and there is no display-name
+  spoof, weak AI suspicion is overruled. This is the operational fix for
+  the "GitHub sign-in notification flagged as phishing" failure mode.
+
+Thresholds: 0-2 points = Low, 3-5 = Medium, 6+ = High.
+
+These weights are a judgment call. They are exposed in `phishing_rater/score.py`
+constants so a real deployment can tune them against its own corpus and
+analyst feedback.
