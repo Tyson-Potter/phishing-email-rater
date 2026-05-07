@@ -1,6 +1,8 @@
 """Command-line interface and orchestration for the phishing email rater."""
 import argparse
 
+from phishing_rater.llm.analyzer import analyze_email as llm_analyze
+from phishing_rater.ml.hf_classifier import classify as ml_classify
 from phishing_rater.parser import parse_email_file, extract_body_text
 from phishing_rater.rules.attachments import extract_attachments
 from phishing_rater.rules.auth_headers import auth_findings, parse_auth_results
@@ -9,8 +11,12 @@ from phishing_rater.rules.urls import defang, extract_urls
 from phishing_rater.rules.whois_check import check_domain_age, registered_domain
 
 
-def analyze(path):
-    """Run all rule-based checks on a .eml file and return a structured report."""
+def analyze(path, *, skip_llm=False):
+    """Run all checks on a .eml file and return a structured report.
+
+    skip_llm: if True, skip the LLM call (useful for fast local iteration
+    when Ollama isn't running).
+    """
     msg = parse_email_file(path)
     body = extract_body_text(msg)
     urls = extract_urls(body)
@@ -32,6 +38,8 @@ def analyze(path):
         "from_findings": from_findings(msg),
         "attachments": extract_attachments(msg),
         "urls": url_findings,
+        "ml": ml_classify(body),
+        "llm": None if skip_llm else llm_analyze(body),
     }
 
 
@@ -70,15 +78,47 @@ def print_report(report):
         else:
             flag = "  *** SUSPICIOUS (<30d) ***" if age["suspicious"] else ""
             print(f"    domain: {age['domain']}  age: {age['age_days']}d{flag}")
+    print()
+    print("ML classifier (HuggingFace DistilBERT):")
+    ml = report["ml"]
+    if ml["error"]:
+        print(f"  (skipped: {ml['error']})")
+    else:
+        flag = "  *** SUSPICIOUS ***" if ml["phishing_score"] >= 0.5 else ""
+        print(f"  phishing_score:   {ml['phishing_score']:.3f}{flag}")
+        print(f"  legitimate_score: {ml['legitimate_score']:.3f}")
+        print(f"  top label:        {ml['top_label']}")
+    print()
+    print("LLM verdict (local Ollama):")
+    llm = report["llm"]
+    if llm is None:
+        print("  (skipped via --skip-llm)")
+    elif llm["error"]:
+        print(f"  (skipped: {llm['error']})")
+    else:
+        cls = (llm["classification"] or "?").upper()
+        conf = (llm["confidence"] or "?").upper()
+        flag = "  ***" if cls in ("PHISHING", "SUSPICIOUS") else ""
+        print(f"  classification:    {cls} ({conf} confidence){flag}")
+        print(f"  recommended action: {llm['recommended_action']}")
+        if llm["indicators"]:
+            print("  indicators:")
+            for ind in llm["indicators"]:
+                print(f"    - {ind}")
 
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Analyze a .eml file for phishing indicators (rule-based)."
+        description="Analyze a .eml file for phishing indicators."
     )
     parser.add_argument("file", help="Path to a .eml file to analyze")
+    parser.add_argument(
+        "--skip-llm",
+        action="store_true",
+        help="Skip the LLM call (useful when Ollama isn't running)",
+    )
     args = parser.parse_args()
-    report = analyze(args.file)
+    report = analyze(args.file, skip_llm=args.skip_llm)
     print_report(report)
 
 

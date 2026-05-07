@@ -3,3 +3,6 @@ __pycache__/
 *.pyc
 .pytest_cache/
 .env
+
+# LLM audit logs may contain email content
+.phishing_rater/
