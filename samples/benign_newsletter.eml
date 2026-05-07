@@ -1,0 +1,26 @@
+Delivered-To: tyson@example.com
+Received: from mail-relay.tysonpotter.com (mail-relay.tysonpotter.com [203.0.113.5])
+	by mx.example.com with ESMTPS id abc123
+	for <tyson@example.com>; Tue, 05 May 2026 14:32:01 -0400 (EDT)
+From: "BigCo Newsletter" <newsletter@tysonpotter.com>
+To: tyson@example.com
+Subject: Your weekly digest
+Date: Tue, 05 May 2026 14:32:01 -0400
+Message-ID: <20260505183201.abc123@tysonpotter.com>
+Authentication-Results: mx.example.com;
+ spf=pass smtp.mailfrom=tysonpotter.com;
+ dkim=pass header.d=tysonpotter.com;
+ dmarc=pass header.from=tysonpotter.com
+Content-Type: text/plain; charset="utf-8"
+MIME-Version: 1.0
+
+Hi Tyson,
+
+Here are this week's top stories from BigCo:
+- New product launch: https://tysonpotter.com/launch
+- Office hours signup: https://tysonpotter.com/events/office-hours
+
+Unsubscribe: https://tysonpotter.com/unsubscribe?u=abc123
+
+Thanks,
+The BigCo Team

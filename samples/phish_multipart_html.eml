@@ -1,0 +1,45 @@
+Delivered-To: tyson@example.com
+Received: from unknown (unknown [198.51.100.77])
+	by mx.example.com with ESMTPS id mp001
+	for <tyson@example.com>; Tue, 06 May 2026 11:08:42 -0400 (EDT)
+From: "DocuSign Notification" <noreply@docusign-share.net>
+To: tyson@example.com
+Subject: Document ready for your signature
+Date: Tue, 06 May 2026 11:08:42 -0400
+Message-ID: <multipart.001@docusign-share.net>
+MIME-Version: 1.0
+Content-Type: multipart/alternative; boundary="boundary_alt_001"
+Authentication-Results: mx.example.com;
+ spf=fail smtp.mailfrom=docusign-share.net;
+ dkim=none;
+ dmarc=fail header.from=docusign-share.net
+
+--boundary_alt_001
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: 7bit
+
+A document has been shared with you for signature.
+
+View document: https://docusign-share.net/d/abc123
+
+This link will expire in 24 hours.
+
+--boundary_alt_001
+Content-Type: text/html; charset="utf-8"
+Content-Transfer-Encoding: 7bit
+
+<html>
+<body>
+<p>Hello,</p>
+<p>A document has been shared with you for review and signature.</p>
+<p>
+  <a href="https://malicious-redirect.tk/track?u=tyson&dest=evil">
+    View Document on DocuSign
+  </a>
+</p>
+<p>This link will expire in 24 hours.</p>
+<p>Regards,<br/>DocuSign Team</p>
+</body>
+</html>
+
+--boundary_alt_001--

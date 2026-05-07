@@ -1,0 +1,5 @@
+# WHOIS lookup for domain age checks (Step 3)
+python-whois==0.9.4
+
+# Parses URLs into subdomain / registered-name / suffix using the Public Suffix List (Step 3)
+tldextract==5.1.2

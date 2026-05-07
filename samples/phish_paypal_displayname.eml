@@ -1,0 +1,33 @@
+Delivered-To: tyson@example.com
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com [209.85.220.41])
+	by mx.example.com with ESMTPS id xyz789
+	for <tyson@example.com>; Tue, 06 May 2026 09:14:22 -0400 (EDT)
+From: "PayPal Support" <paypal.support.team.9912@gmail.com>
+Reply-To: paypal.support.team.9912@gmail.com
+To: tyson@example.com
+Subject: Urgent: Your account has been limited
+Date: Tue, 06 May 2026 09:14:22 -0400
+Message-ID: <random.id.001@gmail.com>
+Authentication-Results: mx.example.com;
+ spf=pass smtp.mailfrom=gmail.com;
+ dkim=pass header.d=gmail.com;
+ dmarc=fail header.from=gmail.com
+Content-Type: text/plain; charset="utf-8"
+MIME-Version: 1.0
+
+Dear PayPal Customer,
+
+We have detected unusual activity on your account. Your account
+access has been temporarily limited as a security precaution.
+
+To restore full access, please verify your identity within 24 hours
+by clicking the link below:
+
+https://paypa1-secure-verify.com/login?session=2f9a8b
+
+Failure to verify will result in permanent account closure and
+forfeiture of any pending balance.
+
+Thank you for your prompt attention to this matter.
+
+PayPal Security Team

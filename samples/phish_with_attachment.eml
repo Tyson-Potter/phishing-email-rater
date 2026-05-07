@@ -1,0 +1,38 @@
+Delivered-To: tyson@example.com
+Received: from unknown (unknown [192.0.2.55])
+	by mx.example.com with ESMTPS id at001
+	for <tyson@example.com>; Tue, 06 May 2026 13:22:11 -0400 (EDT)
+From: "Accounting Dept" <billing@vendor-invoices.biz>
+To: tyson@example.com
+Subject: Invoice INV-2026-0042 - Payment Required
+Date: Tue, 06 May 2026 13:22:11 -0400
+Message-ID: <attach.001@vendor-invoices.biz>
+MIME-Version: 1.0
+Content-Type: multipart/mixed; boundary="boundary_mix_001"
+Authentication-Results: mx.example.com;
+ spf=fail smtp.mailfrom=vendor-invoices.biz;
+ dkim=none;
+ dmarc=fail header.from=vendor-invoices.biz
+
+--boundary_mix_001
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: 7bit
+
+Hello,
+
+Please find attached invoice INV-2026-0042 for immediate payment.
+Wire transfer details are inside the attached document.
+
+Payment is due within 48 hours to avoid service interruption.
+
+Regards,
+Accounting Department
+
+--boundary_mix_001
+Content-Type: application/pdf; name="invoice.pdf"
+Content-Transfer-Encoding: base64
+Content-Disposition: attachment; filename="invoice.pdf"
+
+RkFLRV9QREZfQ09OVEVOVF9GT1JfVEVTVElOR19QVVJQT1NFU19PTkxZLgpUaGlzIGlzIG5vdCBh
+IHJlYWwgUERGLiBJdCBpcyBhIHRlc3QgZml4dHVyZSBmb3IgaGFzaGluZyBhbmQgcGFyc2luZy4K
+--boundary_mix_001--
