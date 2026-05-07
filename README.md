@@ -55,6 +55,119 @@ python -m phishing_rater path/to/email.eml --skip-llm   # rules + ML only
 
 Sample emails for testing live in `samples/` (synthetic — see `X-Sample-Origin` header in each file).
 
+## Example output
+
+Three runs from this repo's sample corpus, illustrating how the layers interact.
+LLM indicator wording varies slightly between runs (LLMs are non-deterministic
+even at low temperature); the verdict and rationale points are stable.
+
+### 1. Credential-harvesting phish — every layer fires
+
+`samples/phish_paypal_displayname.eml`
+
+```
+=== RISK: HIGH (16 points)  *** ===
+  +3  DMARC fail
+  +3  Display name claims 'paypal' but address domain is 'gmail.com' (expected: paypal.com)
+  +3  Display name has corporate role term(s) [support] but address is on free provider 'gmail.com'
+  +4  paypa1-secure-verify.com is not registered
+  +2  ML high-confidence phishing (1.00)
+  +1  LLM SUSPICIOUS (low)
+
+From:    PayPal Support <paypal.support.team.9912@gmail.com>
+Subject: Urgent: Your account has been limited
+
+Authentication results:
+  SPF: pass
+  DKIM: pass
+  DMARC: FAIL ***
+
+From-header findings:
+  *** Display name claims 'paypal' but address domain is 'gmail.com' (expected: paypal.com)
+  *** Display name has corporate role term(s) [support] but address is on free provider 'gmail.com'
+
+URLs found (defanged) + domain age:
+  hxxps://paypa1-secure-verify[.]com/login?session=2f9a8b
+    domain: paypa1-secure-verify.com  (whois: domain not registered)
+
+ML classifier (HuggingFace DistilBERT):
+  phishing_score:   1.000  *** SUSPICIOUS ***
+  top label:        phishing
+
+LLM verdict (local Ollama):
+  classification:    SUSPICIOUS (LOW confidence)  ***
+  indicators:
+    - temporarily limited access
+    - permanent account closure
+    - pending balance
+```
+
+### 2. BEC — ML false negative, layered defense saves it
+
+`samples/phish_bec_ceo.eml` is pure social engineering: no URLs, no
+attachments, no phishing keywords. The ML classifier scores it
+**`phishing_score: 0.000`** — total false negative. The rule-based and LLM
+layers still drive the verdict to HIGH:
+
+```
+=== RISK: HIGH (7 points)  *** ===
+  +3  DMARC fail
+  +3  Display name has corporate role term(s) [ceo] but address is on free provider 'gmail.com'
+  +1  LLM SUSPICIOUS (low)
+
+From:    "Sarah Chen, CEO" <sarah.chen.ceo.bigco@gmail.com>
+Subject: Quick favor - need this done today
+
+ML classifier (HuggingFace DistilBERT):
+  phishing_score:   0.000
+  top label:        legitimate
+
+LLM verdict (local Ollama):
+  classification:    SUSPICIOUS (LOW confidence)  ***
+  indicators:
+    - urgent request
+    - wire transfer
+    - confidentiality requested
+```
+
+This is the canonical layered-defense argument landing on real data: any
+single signal would have failed; the combination caught it.
+
+### 3. Legitimate transactional email — suppression rule fires
+
+`samples/benign_transactional.eml` is a GitHub sign-in notification. Real
+security emails look textually similar to phishing on purpose. The ML
+layer sees that and flags it (`phishing_score: 0.560`, "phishing"). Without
+suppression we'd cry wolf and an analyst would learn to ignore the tool.
+With it, the strong legit signals win:
+
+```
+=== RISK: LOW (0 points) ===
+  +1  LLM SUSPICIOUS (low)
+  --  suppress: all-pass auth + aged domain + no spoof (was 1 points; AI noise overruled)
+
+From:    GitHub <noreply@github.com>
+Subject: [GitHub] A new sign-in to your account
+
+Authentication results:
+  SPF: pass
+  DKIM: pass
+  DMARC: pass
+
+URLs found (defanged) + domain age:
+  hxxps://github[.]com/settings/security
+    domain: github.com  age: 6785d
+
+ML classifier (HuggingFace DistilBERT):
+  phishing_score:   0.560  *** SUSPICIOUS ***
+  top label:        phishing
+```
+
+The rationale shows exactly what happened: the AI layers contributed
+weak signals; the suppression rule recognized that auth was clean, the
+linked domain was 18+ years old, and there was no display-name spoof,
+so the AI noise was overruled.
+
 ## Project layout
 
 ```
